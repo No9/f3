@@ -15,10 +15,9 @@ panic-halt = "0.2.0"
 panic-itm = "0.4.1"
 panic-semihosting = "0.6.0"
 
-
-# [dependencies.stm32f3]
-# features = ["stm32f303", "rt"]
-# version = "0.15.1"
+[dependencies.stm32f3]
+features = ["stm32f303", "rt"]
+version = "0.15.1"
 
 [[bin]]
 name = "{{project-name}}"
@@ -30,3 +29,4 @@ bench = false
 codegen-units = 1 # better optimizations
 debug = true      # symbols are nice and they don't increase the size on Flash
 lto = true        # better optimizations
+panic = "abort"
