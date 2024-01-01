@@ -9,27 +9,47 @@ use panic_semihosting as _;
 use panic_halt as _;
 
 use core::fmt::Write;
-use cortex_m_rt::entry;
-
 use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m_rt::{entry, exception};
+use cortex_m_rt::{entry, exception, ExceptionFrame};
 use cortex_m_semihosting::hio::{self, HostStream};
-use cortex_m_semihosting::hprintln;
+use cortex_m_semihosting::hprint;
+use stm32f3::stm32f303::{interrupt, Interrupt, NVIC};
 
 #[entry]
 fn main() -> ! {
-    hprintln!("Hello, world!");
-
     let p = cortex_m::Peripherals::take().unwrap();
     let mut syst = p.SYST;
-
+    //let mut nvic = p.NVIC;
+    unsafe {
+        NVIC::unmask(Interrupt::EXTI0);
+    }
     // configures the system timer to trigger a SysTick exception every second
     syst.set_clock_source(SystClkSource::Core);
     // this is configured for the LM3S6965 which has a default CPU clock of 12 MHz
-    syst.set_reload(12_000_000);
+    syst.set_reload(8_000_000); // 1s
     syst.clear_current();
     syst.enable_counter();
     syst.enable_interrupt();
+
+    loop {
+        while !syst.has_wrapped() {}
+
+        // trigger the `EXTI0` interrupt
+        NVIC::pend(Interrupt::EXTI0);
+    }
+}
+
+#[interrupt]
+fn EXTI0() {
+    hprint!(".");
+}
+
+#[exception]
+unsafe fn HardFault(ef: &ExceptionFrame) -> ! {
+    if let Ok(mut hstdout) = hio::hstdout() {
+        writeln!(hstdout, "{:#?}", ef).ok();
+    }
+
     loop {}
 }
 
@@ -49,8 +69,6 @@ fn SysTick() {
         write!(hstdout, "{}", *COUNT).ok();
     }
 
-    // IMPORTANT omit this `if` block if running on real hardware or your
-    // debugger will end in an inconsistent state
     if *COUNT == 9 {
         // This will terminate the QEMU process
         panic!("");
